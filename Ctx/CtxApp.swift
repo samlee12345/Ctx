@@ -1,17 +1,11 @@
-//
-//  CtxApp.swift
-//  Ctx
-//
-//  Created by Samantha Lee on 4/10/26.
-//
-
 import SwiftUI
 
 @main
 struct CtxApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
+        // Settings scene suppresses the default window — we're menu bar only
+        Settings { EmptyView() }
     }
 }

@@ -6,8 +6,19 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		8EA3D49F2F89B4DE003986D9 /* HotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EA3D49D2F89B4DE003986D9 /* HotkeyManager.swift */; };
+		8EA3D4A02F89B4DE003986D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EA3D49C2F89B4DE003986D9 /* AppDelegate.swift */; };
+		8EA3D4A12F89B4DE003986D9 /* WindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EA3D49E2F89B4DE003986D9 /* WindowManager.swift */; };
+		8EA3D4A52F89BA73003986D9 /* ConfigEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EA3D4A42F89BA73003986D9 /* ConfigEditorView.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		8EA3D4882F89B19C003986D9 /* Ctx.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ctx.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8EA3D49C2F89B4DE003986D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Ctx/AppDelegate.swift; sourceTree = "<group>"; };
+		8EA3D49D2F89B4DE003986D9 /* HotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HotkeyManager.swift; path = Ctx/HotkeyManager.swift; sourceTree = "<group>"; };
+		8EA3D49E2F89B4DE003986D9 /* WindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WindowManager.swift; path = Ctx/WindowManager.swift; sourceTree = "<group>"; };
+		8EA3D4A42F89BA73003986D9 /* ConfigEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConfigEditorView.swift; path = Ctx/ConfigEditorView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -34,6 +45,10 @@
 			children = (
 				8EA3D48A2F89B19C003986D9 /* Ctx */,
 				8EA3D4892F89B19C003986D9 /* Products */,
+				8EA3D49C2F89B4DE003986D9 /* AppDelegate.swift */,
+				8EA3D49D2F89B4DE003986D9 /* HotkeyManager.swift */,
+				8EA3D49E2F89B4DE003986D9 /* WindowManager.swift */,
+				8EA3D4A42F89BA73003986D9 /* ConfigEditorView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -119,6 +134,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8EA3D4A52F89BA73003986D9 /* ConfigEditorView.swift in Sources */,
+				8EA3D49F2F89B4DE003986D9 /* HotkeyManager.swift in Sources */,
+				8EA3D4A02F89B4DE003986D9 /* AppDelegate.swift in Sources */,
+				8EA3D4A12F89B4DE003986D9 /* WindowManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -251,10 +270,11 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				ENABLE_APP_SANDBOX = YES;
+				DEVELOPMENT_TEAM = N8YU8EW6NR;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -281,10 +301,11 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				ENABLE_APP_SANDBOX = YES;
+				DEVELOPMENT_TEAM = N8YU8EW6NR;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
