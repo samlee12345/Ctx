@@ -24,8 +24,11 @@ Ctx lets you save which windows belong to a named configuration, then raise all 
 | Shortcut | Action |
 |---|---|
 | `Option+Tab` | Cycle to the next config |
+| `Shift+Option+Tab` | Cycle to the previous config |
 | `Option+`` ` | Cycle focus forward through windows in the current config |
 | `Shift+Option+`` ` | Cycle focus backward |
+
+Holding Option while pressing Tab (or Shift+Tab) repeatedly lets you skip through configs — the menu bar label updates live but windows only raise when you release Option, same feel as Cmd+Tab.
 
 ## First-time setup
 

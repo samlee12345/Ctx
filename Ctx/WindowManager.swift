@@ -54,6 +54,7 @@ private let kActiveIndexKey  = "ctx.activeConfigIndex.v1"
 class WindowManager: ObservableObject {
     @Published var configs: [WindowConfig]
     @Published var activeConfigIndex: Int
+    @Published var isCyclingConfigs = false   // true while Option is held during config cycling
     var noOpHandler: (() -> Void)?   // called by cycle/raise when no valid window found
 
     private var cancellables = Set<AnyCancellable>()
@@ -214,9 +215,19 @@ class WindowManager: ObservableObject {
 
     // MARK: - Cycling
 
-    func cycleNextConfig() {
+    // Advance the active config index without raising any windows.
+    // Used by the hotkey handler while Option is held — windows raise on Option release.
+    func advanceConfig(forward: Bool = true) {
         guard configs.count > 1 else { return }
-        switchToConfig(at: (activeConfigIndex + 1) % configs.count)
+        let step = forward ? 1 : configs.count - 1
+        activeConfigIndex = (activeConfigIndex + step) % configs.count
+        NotificationCenter.default.post(name: .ctxConfigChanged, object: nil)
+    }
+
+    func cycleNextConfig(forward: Bool = true) {
+        guard configs.count > 1 else { return }
+        let step = forward ? 1 : configs.count - 1
+        switchToConfig(at: (activeConfigIndex + step) % configs.count)
     }
 
     func switchToConfig(at index: Int) {
@@ -275,7 +286,9 @@ class WindowManager: ObservableObject {
                 axRaiseWindow(info: info)
                 let app = NSRunningApplication(processIdentifier: pid)
                 if #available(macOS 14.0, *) {
-                    app?.activate()
+                    // activate(from:) works from a non-frontmost/accessory process;
+                    // the plain activate() silently no-ops when Ctx isn't the active app.
+                    app?.activate(from: NSRunningApplication.current)
                 } else {
                     app?.activate(options: .activateIgnoringOtherApps)
                 }
@@ -327,7 +340,9 @@ class WindowManager: ObservableObject {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 let app = NSRunningApplication(processIdentifier: pid)
                 if #available(macOS 14.0, *) {
-                    app?.activate()
+                    // activate(from:) works from a non-frontmost/accessory process;
+                    // the plain activate() silently no-ops when Ctx isn't the active app.
+                    app?.activate(from: NSRunningApplication.current)
                 } else {
                     app?.activate(options: .activateIgnoringOtherApps)
                 }

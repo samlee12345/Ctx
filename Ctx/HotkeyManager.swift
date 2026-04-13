@@ -6,6 +6,10 @@ class HotkeyManager {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var wakeObserver: NSObjectProtocol?
+    // True while Option is physically held after an Option+Tab press.
+    // Windows raise only on Option release so the user can skip configs
+    // without raising each one — same feel as Cmd+Tab.
+    private var optionHeld = false
 
     init(windowManager: WindowManager) {
         self.windowManager = windowManager
@@ -14,8 +18,10 @@ class HotkeyManager {
     func start() -> Bool {
         guard AXIsProcessTrusted() else { return false }
 
-        // Include tap-disabled pseudo-events so we can re-arm the tap if macOS kills it
+        // Include flagsChanged to detect Option release for the deferred-raise behavior.
+        // Include tap-disabled pseudo-events so we can re-arm the tap if macOS kills it.
         let eventMask = CGEventMask(1 << CGEventType.keyDown.rawValue)
+            | CGEventMask(1 << CGEventType.flagsChanged.rawValue)
             | CGEventMask(1 << CGEventType.tapDisabledByTimeout.rawValue)
             | CGEventMask(1 << CGEventType.tapDisabledByUserInput.rawValue)
 
@@ -61,6 +67,18 @@ class HotkeyManager {
             return Unmanaged.passRetained(event)
         }
 
+        // Option released while we were cycling configs — hide the overlay and raise.
+        if type == .flagsChanged {
+            if optionHeld && !event.flags.contains(.maskAlternate) {
+                optionHeld = false
+                DispatchQueue.main.async {
+                    self.windowManager.isCyclingConfigs = false
+                    self.windowManager.raiseActiveConfig()
+                }
+            }
+            return Unmanaged.passRetained(event)
+        }
+
         guard type == .keyDown else { return Unmanaged.passRetained(event) }
 
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
@@ -73,8 +91,20 @@ class HotkeyManager {
         guard optionOnly || optionShift else { return Unmanaged.passRetained(event) }
 
         switch Int(keyCode) {
-        case kVK_Tab where optionOnly: // Option+Tab — cycle configs forward
-            DispatchQueue.main.async { self.windowManager.cycleNextConfig() }
+        case kVK_Tab where optionOnly: // Option+Tab — advance config forward; raise on Option release
+            optionHeld = true
+            DispatchQueue.main.async {
+                self.windowManager.isCyclingConfigs = true
+                self.windowManager.advanceConfig(forward: true)
+            }
+            return nil
+
+        case kVK_Tab where optionShift: // Shift+Option+Tab — advance config backward; raise on Option release
+            optionHeld = true
+            DispatchQueue.main.async {
+                self.windowManager.isCyclingConfigs = true
+                self.windowManager.advanceConfig(forward: false)
+            }
             return nil
 
         case kVK_ANSI_Grave where optionOnly: // Option+` — cycle windows forward

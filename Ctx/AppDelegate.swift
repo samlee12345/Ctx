@@ -1,6 +1,7 @@
 import AppKit
 import ApplicationServices
 import Carbon
+import Combine
 import SwiftUI
 
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -9,6 +10,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkeyManager: HotkeyManager?
     private var managerWindow: NSWindow?
     private var focusedWindowSnapshot: WindowManager.WindowInfo?
+    private var cyclerPanel: NSPanel?
+    private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -16,6 +19,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupStatusItem()
         requestAccessibilityIfNeeded()
         startHotkeys()
+        observeCycling()
 
         windowManager.noOpHandler = { [weak self] in
             self?.flashStatusBar(warning: true)
@@ -156,6 +160,51 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
 
         managerWindow = window
+    }
+
+    // MARK: - Config Cycler Overlay
+
+    private func observeCycling() {
+        windowManager.$isCyclingConfigs
+            .receive(on: RunLoop.main)
+            .sink { [weak self] cycling in
+                if cycling { self?.showCyclerPanel() }
+                else { self?.hideCyclerPanel() }
+            }
+            .store(in: &cancellables)
+    }
+
+    private func showCyclerPanel() {
+        if cyclerPanel == nil {
+            let panel = NSPanel(
+                contentRect: .zero,
+                styleMask: [.nonactivatingPanel, .borderless, .hudWindow],
+                backing: .buffered,
+                defer: false
+            )
+            panel.isOpaque = false
+            panel.backgroundColor = .clear
+            panel.level = .floating
+            panel.hasShadow = true
+            panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            cyclerPanel = panel
+        }
+
+        let hostingView = NSHostingView(rootView: ConfigCyclerView(windowManager: windowManager))
+        let size = hostingView.fittingSize
+        cyclerPanel?.contentView = hostingView
+
+        if let screen = NSScreen.main, let panel = cyclerPanel {
+            let sf = screen.visibleFrame
+            let origin = NSPoint(x: sf.midX - size.width / 2, y: sf.midY - size.height / 2)
+            panel.setFrame(NSRect(origin: origin, size: size), display: false)
+        }
+
+        cyclerPanel?.orderFrontRegardless()
+    }
+
+    private func hideCyclerPanel() {
+        cyclerPanel?.orderOut(nil)
     }
 
     // MARK: - Accessibility
