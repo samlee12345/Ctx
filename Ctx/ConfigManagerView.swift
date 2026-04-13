@@ -4,6 +4,9 @@ struct ConfigManagerView: View {
     @ObservedObject var windowManager: WindowManager
     @State private var selectedIndex: Int = 0
     @State private var allWindows: [WindowManager.WindowInfo] = []
+    @State private var renamingIndex: Int? = nil
+    @State private var renameText: String = ""
+    @State private var showRenameAlert = false
 
     var body: some View {
         NavigationSplitView {
@@ -23,9 +26,22 @@ struct ConfigManagerView: View {
         }
         .frame(minWidth: 580, minHeight: 400)
         .onAppear {
-            allWindows = windowManager.allVisibleWindows()
+            refreshWindows()
             selectedIndex = windowManager.activeConfigIndex
         }
+        // Refresh the window list when apps launch or quit while the manager is open
+        .onReceive(
+            NotificationCenter.default.publisher(for: NSWorkspace.didLaunchApplicationNotification,
+                                                  object: NSWorkspace.shared)
+        ) { _ in refreshWindows() }
+        .onReceive(
+            NotificationCenter.default.publisher(for: NSWorkspace.didTerminateApplicationNotification,
+                                                  object: NSWorkspace.shared)
+        ) { _ in refreshWindows() }
+    }
+
+    private func refreshWindows() {
+        allWindows = windowManager.allVisibleWindows()
     }
 
     private var sidebar: some View {
@@ -39,6 +55,23 @@ struct ConfigManagerView: View {
                 Text(windowManager.configs[i].name)
             }
             .tag(i)
+            .contextMenu {
+                Button("Rename") {
+                    renamingIndex = i
+                    renameText = windowManager.configs[i].name
+                    showRenameAlert = true
+                }
+            }
+        }
+        .alert("Rename Config", isPresented: $showRenameAlert, presenting: renamingIndex) { idx in
+            TextField("Config name", text: $renameText)
+                .onSubmit { applyRename(at: idx) }
+            Button("Rename") { applyRename(at: idx) }
+            Button("Cancel", role: .cancel) { }
+        } message: { idx in
+            if windowManager.configs.indices.contains(idx) {
+                Text("Rename \"\(windowManager.configs[idx].name)\"")
+            }
         }
         .navigationSplitViewColumnWidth(min: 140, ideal: 160)
         .safeAreaInset(edge: .bottom) {
@@ -51,6 +84,11 @@ struct ConfigManagerView: View {
                     Image(systemName: "minus").frame(maxWidth: .infinity)
                 }
                 .disabled(windowManager.configs.count <= 1)
+                Divider().frame(height: 18)
+                Button { refreshWindows() } label: {
+                    Image(systemName: "arrow.clockwise").frame(maxWidth: .infinity)
+                }
+                .help("Refresh window list")
             }
             .buttonStyle(.borderless)
             .padding(6)
@@ -58,19 +96,41 @@ struct ConfigManagerView: View {
         }
     }
 
+    private func applyRename(at index: Int) {
+        let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, windowManager.configs.indices.contains(index) else { return }
+        windowManager.configs[index].name = trimmed
+        NotificationCenter.default.post(name: .ctxConfigChanged, object: nil)
+    }
+
     private func addConfig() {
-        let name = "Config \(windowManager.configs.count + 1)"
-        windowManager.configs.append(WindowConfig(name: name, windowIDs: []))
+        let existing = Set(windowManager.configs.map { $0.name })
+        var n = windowManager.configs.count + 1
+        while existing.contains("Config \(n)") { n += 1 }
+        windowManager.configs.append(WindowConfig(name: "Config \(n)", windowIDs: []))
         selectedIndex = windowManager.configs.count - 1
     }
 
     private func removeConfig() {
-        guard windowManager.configs.count > 1 else { return }
-        windowManager.configs.remove(at: selectedIndex)
-        selectedIndex = max(0, selectedIndex - 1)
-        if windowManager.activeConfigIndex >= windowManager.configs.count {
-            windowManager.activeConfigIndex = windowManager.configs.count - 1
+        guard windowManager.configs.count > 1,
+              windowManager.configs.indices.contains(selectedIndex) else { return }
+        let k = selectedIndex
+        let wasActive = k == windowManager.activeConfigIndex
+        let wasBeforeActive = k < windowManager.activeConfigIndex
+
+        windowManager.configs.remove(at: k)
+
+        // Keep activeConfigIndex pointing at the same logical config
+        if wasBeforeActive {
+            windowManager.activeConfigIndex -= 1
+        } else if wasActive {
+            windowManager.activeConfigIndex = max(0, k - 1)
+            NotificationCenter.default.post(name: .ctxConfigChanged, object: nil)
         }
+        // clamp as a safety net
+        windowManager.activeConfigIndex = min(windowManager.activeConfigIndex, windowManager.configs.count - 1)
+
+        selectedIndex = max(0, k - 1)
     }
 }
 
@@ -81,28 +141,30 @@ struct ConfigDetailView: View {
     @ObservedObject var windowManager: WindowManager
     let allWindows: [WindowManager.WindowInfo]
 
-    private var config: WindowConfig { windowManager.configs[configIndex] }
+    private var configExists: Bool { windowManager.configs.indices.contains(configIndex) }
+    private var config: WindowConfig {
+        configExists ? windowManager.configs[configIndex] : WindowConfig(name: "", windowIDs: [])
+    }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            Divider()
-            windowList
+        if configExists {
+            VStack(spacing: 0) {
+                header
+                Divider()
+                windowList
+            }
+        } else {
+            Text("Config was deleted")
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
     private var header: some View {
         HStack(spacing: 12) {
-            TextField(
-                "Config name",
-                text: Binding(
-                    get: { windowManager.configs[configIndex].name },
-                    set: { windowManager.configs[configIndex].name = $0 }
-                )
-            )
-            .textFieldStyle(.roundedBorder)
-            .font(.body)
-            .frame(maxWidth: 200)
+            Text(config.name)
+                .font(.body)
+                .fontWeight(.medium)
 
             Spacer()
 
@@ -157,11 +219,25 @@ struct ConfigDetailView: View {
     }
 
     private func toggle(_ windowID: CGWindowID) {
+        guard configExists else { return }
         if windowManager.configs[configIndex].windowIDs.contains(windowID) {
+            let cfg = windowManager.configs[configIndex]
+            let cycledID = cfg.windowIDs.indices.contains(cfg.cycleIndex)
+                ? cfg.windowIDs[cfg.cycleIndex] : nil
             windowManager.configs[configIndex].windowIDs.removeAll { $0 == windowID }
+            windowManager.configs[configIndex].windowAppNames.removeValue(forKey: windowID)
+            // Only reset cycleIndex if we removed the window currently being cycled,
+            // or if it's now out of range
+            let newCount = windowManager.configs[configIndex].windowIDs.count
+            if cycledID == windowID || windowManager.configs[configIndex].cycleIndex >= newCount {
+                windowManager.configs[configIndex].cycleIndex = 0
+            }
         } else {
             windowManager.configs[configIndex].windowIDs.append(windowID)
+            if let appName = allWindows.first(where: { $0.id == windowID })?.appName {
+                windowManager.configs[configIndex].windowAppNames[windowID] = appName
+            }
+            // Don't reset cycleIndex when adding a window
         }
-        windowManager.configs[configIndex].cycleIndex = 0
     }
 }

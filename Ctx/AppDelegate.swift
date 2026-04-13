@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import Carbon
 import SwiftUI
 
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -7,6 +8,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     let windowManager = WindowManager()
     private var hotkeyManager: HotkeyManager?
     private var managerWindow: NSWindow?
+    private var focusedWindowSnapshot: WindowManager.WindowInfo?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -14,6 +16,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupStatusItem()
         requestAccessibilityIfNeeded()
         startHotkeys()
+
+        windowManager.noOpHandler = { [weak self] in
+            self?.flashStatusBar(warning: true)
+        }
 
         NotificationCenter.default.addObserver(
             self,
@@ -27,15 +33,51 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem?.button?.title = windowManager.activeConfigName
+        updateStatusTitle()
         statusItem?.menu = buildMenu()
+    }
+
+    private func updateStatusTitle() {
+        let base = windowManager.activeConfigName
+        // Show a lock glyph when secure input is blocking the event tap
+        let title = IsSecureEventInputEnabled() ? "[locked] \(base)" : base
+        statusItem?.button?.title = title
+    }
+
+    // Briefly prefix the status title with a warning to signal a no-op hotkey press
+    private func flashStatusBar(warning: Bool) {
+        guard let button = statusItem?.button else { return }
+        let original = button.title
+        button.title = "! \(windowManager.activeConfigName)"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            button.title = original
+        }
     }
 
     private func buildMenu() -> NSMenu {
         let menu = NSMenu()
+        menu.delegate = self
+        populateMenuItems(menu)
+        return menu
+    }
 
-        // One item per config — click to switch to it
+    private func populateMenuItems(_ menu: NSMenu) {
+        menu.removeAllItems()
+
+        // Warn if accessibility has been revoked since launch
+        if !AXIsProcessTrusted() {
+            let warnItem = NSMenuItem(
+                title: "Accessibility required — click to fix",
+                action: #selector(openAccessibilitySettings),
+                keyEquivalent: ""
+            )
+            warnItem.target = self
+            menu.addItem(warnItem)
+            menu.addItem(.separator())
+        }
+
         for (index, config) in windowManager.configs.enumerated() {
+            // Config switch item
             let item = NSMenuItem(
                 title: config.name,
                 action: #selector(switchToConfig(_:)),
@@ -45,6 +87,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             item.target = self
             item.state = index == windowManager.activeConfigIndex ? .on : .off
             menu.addItem(item)
+
+            // Quick-add item for the focused window
+            if let snapshot = focusedWindowSnapshot {
+                let alreadyAdded = windowManager.configs[index].windowIDs.contains(snapshot.id)
+                let raw = snapshot.windowTitle
+                let displayTitle = raw.count > 32 ? String(raw.prefix(29)) + "..." : raw
+                let addItem = NSMenuItem(
+                    title: "Add \"\(displayTitle)\" to \(config.name)",
+                    action: #selector(addFocusedWindowToConfig(_:)),
+                    keyEquivalent: ""
+                )
+                addItem.tag = index
+                addItem.target = self
+                addItem.indentationLevel = 1
+                addItem.isEnabled = !alreadyAdded
+                menu.addItem(addItem)
+            }
         }
 
         menu.addItem(.separator())
@@ -55,16 +114,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Ctx", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-        return menu
+    }
+
+    @objc private func openAccessibilitySettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     @objc private func switchToConfig(_ sender: NSMenuItem) {
         windowManager.switchToConfig(at: sender.tag)
     }
 
+    @objc private func addFocusedWindowToConfig(_ sender: NSMenuItem) {
+        guard let window = focusedWindowSnapshot else { return }
+        windowManager.addWindow(window.id, appName: window.appName, toConfigAt: sender.tag)
+    }
+
     @objc private func configChanged() {
-        statusItem?.button?.title = windowManager.activeConfigName
-        statusItem?.menu = buildMenu()
+        updateStatusTitle()
+        // Menu items refresh via menuNeedsUpdate next time the menu opens
     }
 
     // MARK: - Manager Window
@@ -99,9 +168,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Hotkeys
 
     private func startHotkeys() {
-        hotkeyManager = HotkeyManager(windowManager: windowManager)
-        if !hotkeyManager!.start() {
-            print("Ctx: Could not start hotkey manager — grant Accessibility permission and relaunch")
+        hotkeyManager?.stop()
+        let hkm = HotkeyManager(windowManager: windowManager)
+        hotkeyManager = hkm
+        if !hkm.start() {
+            print("Ctx: hotkey tap failed — Accessibility permission required")
         }
+    }
+}
+
+// MARK: - NSMenuDelegate
+
+extension AppDelegate: NSMenuDelegate {
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        focusedWindowSnapshot = windowManager.focusedWindowInfo()
+        populateMenuItems(menu)
     }
 }
