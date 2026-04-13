@@ -1,6 +1,6 @@
 # Ctx
 
-A macOS menu bar app for switching between saved window configurations. Instead of switching between apps, Ctx lets you switch between named sets of windows — like having a "Work" layout and a "Research" layout that you can jump between instantly.
+A macOS menu bar app for switching between saved window configurations. Instead of switching between apps, Ctx lets you switch between named sets of windows — like flipping between a "Research" layout and a "Writing" layout without hiding or closing anything.
 
 ## Download
 
@@ -15,9 +15,11 @@ A macOS menu bar app for switching between saved window configurations. Instead 
 
 ## What it does
 
-Ctx lets you save which windows belong to a named configuration, then raise all of those windows to the front with a single keystroke. Windows from other configurations stay open in the background — nothing is hidden or moved. Configs are saved to disk and survive restarts.
+Ctx lets you save which windows belong to a named configuration, then raise all of them to the front with a single keystroke. Windows from other configurations stay open in the background — nothing is hidden, moved, or closed. Configs are saved to disk and survive restarts.
 
-**Example:** You have VS Code, a Terminal, and a Safari window open to your project docs. Save those as "Work". You also have Safari open to Gmail and a second Terminal. Save those as "Research". Press `Option+Tab` to jump between them — the right windows come to the front each time.
+The same window can belong to multiple configs. A Slack window, a shared notes doc, or a research browser can stay in every config so it's always available regardless of which layout you're in.
+
+**Example:** You have Figma, a Terminal, and Safari open to your design system docs. Save those as "Design". You also have Safari open to your email and a Notion window. Save those as "Admin". Press `Option+Tab` to jump between them — the right windows come to the front each time.
 
 ## Keyboard shortcuts
 
@@ -26,9 +28,9 @@ Ctx lets you save which windows belong to a named configuration, then raise all 
 | `Option+Tab` | Cycle to the next config |
 | `Shift+Option+Tab` | Cycle to the previous config |
 | `Option+`` ` | Cycle focus forward through windows in the current config |
-| `Shift+Option+`` ` | Cycle focus backward |
+| `Shift+Option+`` ` | Cycle focus backward through windows in the current config |
 
-Holding Option while pressing Tab (or Shift+Tab) repeatedly lets you skip through configs — the menu bar label updates live but windows only raise when you release Option, same feel as Cmd+Tab.
+**Cmd+Tab-style cycling:** Hold Option and keep pressing Tab (or Shift+Tab) to move through configs without switching yet. A floating overlay appears in the center of the screen showing all your config names, with the current selection highlighted. Release Option to raise that config's windows.
 
 ## First-time setup
 
@@ -50,9 +52,9 @@ Click the menu bar item → **Open Ctx** to open the configuration window.
 - **Rename** — right-click a config in the sidebar → **Rename**
 - **Add / remove config** — `+` and `-` buttons at the bottom of the sidebar
 - **Refresh** — click the `↺` button if you opened new windows after the manager was already open
-- **Window list** — check or uncheck any open window to add or remove it from the active config. Changes save immediately.
+- **Window list** — check or uncheck any open window to add or remove it from the selected config. Changes save immediately. A window can be checked in more than one config.
 
-You can also click any config in the menu bar dropdown to switch to it, or use **Add "[window]" to [Config]** to quickly add the currently focused window without opening the manager.
+You can also click any config in the menu bar dropdown to switch to it directly, or use **Add "[window]" to [Config]** to quickly add the currently focused window without opening the manager.
 
 ## How it works
 
