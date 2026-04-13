@@ -2,42 +2,38 @@
 
 A macOS menu bar app for switching between saved window configurations. Instead of switching between apps, Ctx lets you switch between named sets of windows — like having a "Work" layout and a "Research" layout that you can jump between instantly.
 
+## Download
+
+**[Download the latest release](https://github.com/samlee12345/Ctx/releases/latest)**
+
+1. Download `Ctx.zip` from the release page
+2. Unzip and drag `Ctx.app` to your Applications folder
+3. Right-click `Ctx.app` → **Open** (required once to bypass Gatekeeper on unsigned apps)
+4. Ctx appears in your menu bar — follow the setup steps below
+
+> **Why right-click to open?** Ctx is distributed outside the Mac App Store and is not notarized. macOS blocks unsigned apps from double-clicking, but right-click → Open bypasses this on first launch only.
+
 ## What it does
 
-Ctx lets you save which windows belong to a named configuration, then raise all of those windows to the front with a single keystroke. Windows from other configurations stay open in the background — nothing is hidden or moved.
+Ctx lets you save which windows belong to a named configuration, then raise all of those windows to the front with a single keystroke. Windows from other configurations stay open in the background — nothing is hidden or moved. Configs are saved to disk and survive restarts.
 
-**Example:** You have VS Code, a Terminal, and a Safari window open to your project docs. You save those as "Work". You also have Safari open to Gmail and a second Terminal. You save those as "Research". Press `Option+Tab` to switch between them — the right windows come to the front each time.
+**Example:** You have VS Code, a Terminal, and a Safari window open to your project docs. Save those as "Work". You also have Safari open to Gmail and a second Terminal. Save those as "Research". Press `Option+Tab` to jump between them — the right windows come to the front each time.
 
 ## Keyboard shortcuts
 
 | Shortcut | Action |
 |---|---|
 | `Option+Tab` | Cycle to the next config |
-| `Option+~` | Cycle focus through windows within the current config |
+| `Option+`` ` | Cycle focus forward through windows in the current config |
+| `Shift+Option+`` ` | Cycle focus backward |
 
-## Setup
+## First-time setup
 
-**Requirements:** macOS 14 or later, Xcode 15+
-
-**Permissions:** Ctx requires Accessibility access to raise and focus windows. On first launch, macOS will prompt you. If it doesn't, go to System Settings → Privacy & Security → Accessibility and add Ctx manually.
-
-**Distribution:** Ctx is distributed outside the Mac App Store and must be built from source.
-
-### Build and run
-
-```bash
-git clone https://github.com/samlee12345/Ctx.git
-cd Ctx
-open Ctx.xcodeproj
-```
-
-Then in Xcode: select the Ctx scheme, choose your Mac as the destination, and press `Cmd+R`.
-
-### First-time setup
+**Requirements:** macOS 14 or later. Accessibility permission (macOS will prompt on first launch).
 
 1. Launch Ctx — it appears in the menu bar
-2. Open your apps and arrange your windows for the first configuration
-3. Click the menu bar item → **Open Ctx** (or press `Cmd+,`)
+2. Open your apps and arrange your windows
+3. Click the Ctx menu bar item → **Open Ctx** (or press `Cmd+,`)
 4. In the sidebar, select a config (e.g. "Work")
 5. Check the windows you want in that config
 6. Repeat for other configs
@@ -47,25 +43,29 @@ Then in Xcode: select the Ctx scheme, choose your Mac as the destination, and pr
 
 Click the menu bar item → **Open Ctx** to open the configuration window.
 
-- **Sidebar** — lists all configs. A filled dot marks the currently active one. Click a config to edit it.
-- **Rename** — edit the name field at the top of the detail panel
-- **Add config** — click `+` at the bottom of the sidebar
-- **Remove config** — select a config and click `-`
-- **Window list** — check or uncheck any open window to add or remove it from the config. Changes save immediately.
+- **Sidebar** — lists all configs. A filled dot marks the active one. Click to select.
+- **Rename** — right-click a config in the sidebar → **Rename**
+- **Add / remove config** — `+` and `-` buttons at the bottom of the sidebar
+- **Refresh** — click the `↺` button if you opened new windows after the manager was already open
+- **Window list** — check or uncheck any open window to add or remove it from the active config. Changes save immediately.
 
-You can also click any config name directly in the menu bar dropdown to switch to it.
+You can also click any config in the menu bar dropdown to switch to it, or use **Add "[window]" to [Config]** to quickly add the currently focused window without opening the manager.
 
 ## How it works
 
-Ctx uses macOS's Accessibility API (`AXUIElement`) to raise windows and the private `_AXUIElementGetWindow` function to map `CGWindowID` values directly to AX elements. Window configs are stored in memory for the session — since the app is designed for use with long-running windows that are never closed, this is sufficient. Configs are lost when Ctx quits.
+Ctx uses macOS's Accessibility API (`AXUIElement`) to raise and unminimize windows, and the private `_AXUIElementGetWindow` function to map `CGWindowID` values to AX elements. Global hotkeys are registered via `CGEventTap`. Configs are persisted to `UserDefaults` and survive restarts.
 
-Global hotkeys are registered via `CGEventTap` at the session level.
+The event tap automatically re-arms after sleep/wake and after macOS disables it due to secure input or timeouts.
 
-## Limitations
+## Build from source
 
-- Configs are session-only and reset when Ctx quits
-- Windows that are minimized or on a different Space will not be raised
-- Some apps with restricted accessibility support may not respond to raise actions
+```bash
+git clone https://github.com/samlee12345/Ctx.git
+cd Ctx
+open Ctx.xcodeproj
+```
+
+Select the Ctx scheme, choose your Mac as the destination, press `Cmd+R`.
 
 ## License
 
